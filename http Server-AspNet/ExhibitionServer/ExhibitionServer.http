@@ -1,0 +1,11 @@
+@ExhibitionServer_HostAddress = http://localhost:5225
+
+POST {{ExhibitionServer_HostAddress}}/commands
+Content-Type: application/json
+Accept: application/json
+
+{
+  "type": "setEmotion",
+  "characterId": "c1",
+  "emotionKey": "happy"
+}
