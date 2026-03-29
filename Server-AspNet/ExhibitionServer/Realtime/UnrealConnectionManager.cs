@@ -3,6 +3,7 @@ using System.Net.WebSockets;
 using System.Text;
 using System.Text.Json;
 using Exhibition.Shared.Commands;
+using Microsoft.Extensions.Logging;
 
 namespace ExhibitionServer.Realtime
 {
@@ -10,11 +11,22 @@ namespace ExhibitionServer.Realtime
     {
         private readonly ConcurrentDictionary<string, UnrealConnection> _connections = new();
         private readonly JsonSerializerOptions _jsonOptions = new(JsonSerializerDefaults.Web);
+        private readonly ILogger<UnrealConnectionManager> _logger;
+
+        public UnrealConnectionManager(ILogger<UnrealConnectionManager> logger)
+        {
+            _logger = logger;
+        }
+
+        public int ConnectionCount => _connections.Count;
 
         public string Add(WebSocket socket)
         {
             var connectionId = Guid.NewGuid().ToString("n");
             _connections[connectionId] = new UnrealConnection(socket);
+
+            _logger.LogInformation("Unreal connected. ConnectionId={ConnectionId}, Count={Count}", connectionId, ConnectionCount);
+
             return connectionId;
         }
 
@@ -43,6 +55,8 @@ namespace ExhibitionServer.Realtime
             {
                 connection.SendLock.Dispose();
                 connection.Socket.Dispose();
+
+                _logger.LogInformation("Unreal disconnected. ConnectionId={ConnectionId}, Count={Count}", connectionId, ConnectionCount);
             }
         }
 
@@ -68,7 +82,6 @@ namespace ExhibitionServer.Realtime
                     }
 
                     // MVP: Unreal -> Server 메시지는 아직 사용하지 않으므로 폐기
-                    // 필요해지면 여기서 ping/pong, ack, 상태 보고 등을 처리
                 }
             }
             catch
@@ -81,13 +94,18 @@ namespace ExhibitionServer.Realtime
             }
         }
 
-        public async Task BroadcastAsync(ExhibitionCommand command, CancellationToken cancellationToken)
+        public async Task<BroadcastResult> BroadcastAsync(ExhibitionCommand command, CancellationToken cancellationToken)
         {
             var json = JsonSerializer.Serialize(command, command.GetType(), _jsonOptions);
             var payload = Encoding.UTF8.GetBytes(json);
 
+            var attempted = 0;
+            var sent = 0;
+
             foreach (var (connectionId, connection) in _connections.ToArray())
             {
+                attempted++;
+
                 if (connection.Socket.State != WebSocketState.Open)
                 {
                     await RemoveAsync(connectionId, cancellationToken);
@@ -103,6 +121,8 @@ namespace ExhibitionServer.Realtime
                         WebSocketMessageType.Text,
                         endOfMessage: true,
                         cancellationToken);
+
+                    sent++;
                 }
                 catch
                 {
@@ -116,7 +136,18 @@ namespace ExhibitionServer.Realtime
                     }
                 }
             }
+
+            _logger.LogInformation(
+                "Broadcast done. CommandId={CommandId}, Attempted={Attempted}, Sent={Sent}, Connections={Connections}",
+                command.CommandId,
+                attempted,
+                sent,
+                ConnectionCount);
+
+            return new BroadcastResult(attempted, sent);
         }
+
+        public sealed record BroadcastResult(int Attempted, int Sent);
 
         private sealed class UnrealConnection
         {

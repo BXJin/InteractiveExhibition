@@ -29,12 +29,15 @@ namespace ExhibitionServer.Controllers
                 command.CharacterId,
                 command.TargetId);
 
-            await _unrealConnectionManager.BroadcastAsync(command, cancellationToken);
+            var result = await _unrealConnectionManager.BroadcastAsync(command, cancellationToken);
 
             return Accepted(new
             {
-                command.CommandId,
-                command.CreatedAt
+                commandId = command.CommandId,
+                createdAt = command.CreatedAt,
+                unrealConnections = _unrealConnectionManager.ConnectionCount,
+                broadcastAttempted = result.Attempted,
+                broadcastSent = result.Sent
             });
         }
     }

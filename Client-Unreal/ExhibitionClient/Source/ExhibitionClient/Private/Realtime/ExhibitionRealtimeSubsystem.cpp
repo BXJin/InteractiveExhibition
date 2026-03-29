@@ -294,5 +294,6 @@ void UExhibitionRealtimeSubsystem::HandleClosed(int32 StatusCode, const FString&
 
 void UExhibitionRealtimeSubsystem::HandleMessage(const FString& Message)
 {
+    UE_LOG(LogExhibitionRealtime, Warning, TEXT("Command received: %s"), *Message.Left(512));
     OnCommandReceived.Broadcast(Message);
 }
