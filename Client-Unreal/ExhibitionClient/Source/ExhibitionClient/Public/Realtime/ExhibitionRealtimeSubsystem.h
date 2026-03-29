@@ -9,6 +9,13 @@ class IWebSocket;
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FExhibitionRealtimeCommandReceived, const FString&, Json);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FExhibitionRealtimeConnectionChanged, bool, bConnected);
 
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FExhibitionSetEmotionReceived, const FString&, CharacterId, const FString&, EmotionKey);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(FExhibitionPlayAnimationReceived, const FString&, CharacterId, const FString&, AnimationKey, bool, bLoop);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FExhibitionTriggerStageEventReceived, const FString&, CharacterId, const FString&, StageEventKey);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(FExhibitionMoveToPointReceived, const FString&, CharacterId, FVector, Position, float, Speed);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_FourParams(FExhibitionMoveDirectionReceived, const FString&, CharacterId, FVector, Direction, float, Speed, float, DurationSeconds);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FExhibitionRotateReceived, const FString&, CharacterId, FRotator, Rotation);
+
 UCLASS(Config=Game, DefaultConfig)
 class EXHIBITIONCLIENT_API UExhibitionRealtimeSubsystem : public UGameInstanceSubsystem
 {
@@ -33,6 +40,25 @@ public:
 	UPROPERTY(BlueprintAssignable, Category="Exhibition|Realtime")
 	FExhibitionRealtimeConnectionChanged OnConnectionChanged;
 
+	// type 기반 이벤트(서버 DTO와 1:1)
+	UPROPERTY(BlueprintAssignable, Category="Exhibition|Realtime|Commands")
+	FExhibitionSetEmotionReceived OnSetEmotion;
+
+	UPROPERTY(BlueprintAssignable, Category="Exhibition|Realtime|Commands")
+	FExhibitionPlayAnimationReceived OnPlayAnimation;
+
+	UPROPERTY(BlueprintAssignable, Category="Exhibition|Realtime|Commands")
+	FExhibitionTriggerStageEventReceived OnTriggerStageEvent;
+
+	UPROPERTY(BlueprintAssignable, Category="Exhibition|Realtime|Commands")
+	FExhibitionMoveToPointReceived OnMoveToPoint;
+
+	UPROPERTY(BlueprintAssignable, Category="Exhibition|Realtime|Commands")
+	FExhibitionMoveDirectionReceived OnMoveDirection;
+
+	UPROPERTY(BlueprintAssignable, Category="Exhibition|Realtime|Commands")
+	FExhibitionRotateReceived OnRotate;
+
 private:
 	void ConnectInternal();
 	void DisconnectInternal(bool bWasManual);
@@ -45,6 +71,11 @@ private:
 	void HandleConnectionError(const FString& Error);
 	void HandleClosed(int32 StatusCode, const FString& Reason, bool bWasClean);
 	void HandleMessage(const FString& Message);
+
+	bool TryDispatchCommand(const FString& Message);
+
+	static bool TryGetVector3(const TSharedPtr<class FJsonObject>& Obj, const FString& FieldName, FVector& Out);
+	static bool TryGetRotator(const TSharedPtr<class FJsonObject>& Obj, const FString& FieldName, FRotator& Out);
 
 private:
 	UPROPERTY(Config)

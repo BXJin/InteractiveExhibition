@@ -3,7 +3,6 @@ using System.Net.WebSockets;
 using System.Text;
 using System.Text.Json;
 using Exhibition.Shared.Commands;
-using Microsoft.Extensions.Logging;
 
 namespace ExhibitionServer.Realtime
 {
@@ -96,7 +95,8 @@ namespace ExhibitionServer.Realtime
 
         public async Task<BroadcastResult> BroadcastAsync(ExhibitionCommand command, CancellationToken cancellationToken)
         {
-            var json = JsonSerializer.Serialize(command, command.GetType(), _jsonOptions);
+            // 중요: 베이스 타입으로 직렬화해야 폴리모픽 discriminator("type")가 포함됩니다.
+            var json = JsonSerializer.Serialize(command, typeof(ExhibitionCommand), _jsonOptions);
             var payload = Encoding.UTF8.GetBytes(json);
 
             var attempted = 0;
