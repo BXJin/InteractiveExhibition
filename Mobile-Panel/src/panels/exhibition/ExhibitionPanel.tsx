@@ -15,6 +15,7 @@ import {
   StatusBar,
   SideMenu,
   useTransport,
+  useConnectionState,
   useThrottle,
 } from '../../core';
 import type { ConnectionStatus } from '../../core';
@@ -93,8 +94,9 @@ function ResultBanner({ banner }: { banner: FeedbackBanner | null }) {
 
 export const ExhibitionPanel: React.FC = () => {
   const transport = useTransport();
+  const connState = useConnectionState();
 
-  // UI state
+  // UI state — 연결 상태를 ConnectionStatus로 매핑
   const [status, setStatus]     = useState<ConnectionStatus>('ready');
   const [banner, setBanner]     = useState<FeedbackBanner | null>(null);
   const [activeBtn, setActiveBtn] = useState<string | null>(null);
@@ -172,8 +174,8 @@ export const ExhibitionPanel: React.FC = () => {
         <>
           <StatusBar
             title="Exhibition"
-            subtitle={serverUrl}
-            status={status}
+            subtitle={`${serverUrl} · ${connState}`}
+            status={connState === 'disconnected' ? 'error' : connState === 'connecting' ? 'sending' : status}
             icon={<Smartphone size={14} className="text-emerald-400" />}
             actions={
               <button
