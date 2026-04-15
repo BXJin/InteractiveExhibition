@@ -16,6 +16,12 @@ export interface SendResult {
   error?: string;
 }
 
+/** 연결 상태 */
+export type ConnectionState = 'disconnected' | 'connecting' | 'connected';
+
+/** 연결 상태 변경 콜백 */
+export type ConnectionStateListener = (state: ConnectionState) => void;
+
 /** 전송 수단 인터페이스 */
 export interface ITransport {
   /**
@@ -30,4 +36,13 @@ export interface ITransport {
    * 실패해도 무시하고 다음 입력을 보냄.
    */
   sendRaw(payload: Record<string, unknown>): void;
+
+  /** 연결 상태 변경 리스너 등록. 해제 함수 반환. */
+  onStateChange?(listener: ConnectionStateListener): () => void;
+
+  /** 현재 연결 상태 */
+  readonly state?: ConnectionState;
+
+  /** 리소스 정리 (WebSocket/SignalR 연결 해제 등) */
+  dispose?(): void;
 }

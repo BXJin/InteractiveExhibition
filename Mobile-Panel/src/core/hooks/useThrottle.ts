@@ -10,11 +10,14 @@ import { useRef, useCallback, useEffect } from 'react';
  *
  * @param callback  스로틀할 콜백
  * @param intervalMs  최소 호출 간격 (ms). 기본 100ms → 초당 최대 10회
+ * @returns [throttledFn, cancel]
+ *   - throttledFn: 스로틀된 콜백
+ *   - cancel: pending RAF를 즉시 취소 (조이스틱 onRelease 등에서 호출)
  */
 export function useThrottle<T extends (...args: unknown[]) => void>(
   callback: T,
   intervalMs = 100,
-): T {
+): [T, () => void] {
   const lastCallRef = useRef(0);
   const callbackRef = useRef(callback);
   const rafIdRef = useRef(0);
@@ -26,6 +29,11 @@ export function useThrottle<T extends (...args: unknown[]) => void>(
 
   // 언마운트 시 pending RAF 정리
   useEffect(() => () => cancelAnimationFrame(rafIdRef.current), []);
+
+  const cancel = useCallback(() => {
+    cancelAnimationFrame(rafIdRef.current);
+    rafIdRef.current = 0;
+  }, []);
 
   const throttled = useCallback((...args: unknown[]) => {
     const now = performance.now();
@@ -44,5 +52,5 @@ export function useThrottle<T extends (...args: unknown[]) => void>(
     }
   }, [intervalMs]) as T;
 
-  return throttled;
+  return [throttled, cancel];
 }

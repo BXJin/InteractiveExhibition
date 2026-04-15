@@ -1,3 +1,5 @@
-export type { ITransport, SendResult } from './types';
+export type { ITransport, SendResult, ConnectionState, ConnectionStateListener } from './types';
 export { HttpTransport } from './HttpTransport';
-export { TransportProvider, useTransport } from './TransportProvider';
+export { SignalRTransport } from './SignalRTransport';
+export { TransportProvider, useTransport, useConnectionState } from './TransportProvider';
+export type { TransportMode } from './TransportProvider';

@@ -15,6 +15,7 @@ import {
   StatusBar,
   SideMenu,
   useTransport,
+  useConnectionState,
   useThrottle,
 } from '../../core';
 import type { ConnectionStatus } from '../../core';
@@ -93,8 +94,9 @@ function ResultBanner({ banner }: { banner: FeedbackBanner | null }) {
 
 export const ExhibitionPanel: React.FC = () => {
   const transport = useTransport();
+  const connState = useConnectionState();
 
-  // UI state
+  // UI state — 연결 상태를 ConnectionStatus로 매핑
   const [status, setStatus]     = useState<ConnectionStatus>('ready');
   const [banner, setBanner]     = useState<FeedbackBanner | null>(null);
   const [activeBtn, setActiveBtn] = useState<string | null>(null);
@@ -149,11 +151,24 @@ export const ExhibitionPanel: React.FC = () => {
   }, [transport, status]);
 
   // ── Throttled continuous inputs ──
-  const throttledMove = useThrottle((x: number, y: number) => {
-    transport.sendRaw(ExhibitionCommands.moveDirection(x, -y)); // y축 반전
-  }, THROTTLE_MS);
 
-  const throttledRotate = useThrottle((dx: number, dy: number) => {
+  // [이동] onChange 기반 throttle 대신 setInterval 사용.
+  // onChange는 값이 바뀔 때만 호출되므로 조이스틱을 고정하면 전송이 멈춤.
+  // → 서버의 dead-man's-switch 타임아웃에 걸려 캐릭터가 멈추는 버그 발생.
+  // setInterval은 누르고 있는 동안 THROTTLE_MS마다 항상 전송을 보장.
+  const joystickRef = useRef({ x: 0, y: 0, active: false });
+
+  useEffect(() => {
+    const id = setInterval(() => {
+      const { x, y, active } = joystickRef.current;
+      if (active) {
+        transport.sendRaw(ExhibitionCommands.moveDirection(x, -y)); // y축 반전
+      }
+    }, THROTTLE_MS);
+    return () => clearInterval(id);
+  }, [transport]);
+
+  const [throttledRotate] = useThrottle((dx: number, dy: number) => {
     transport.sendRaw(ExhibitionCommands.rotate(-dy * 0.3, dx * 0.3));
   }, THROTTLE_MS);
 
@@ -172,8 +187,8 @@ export const ExhibitionPanel: React.FC = () => {
         <>
           <StatusBar
             title="Exhibition"
-            subtitle={serverUrl}
-            status={status}
+            subtitle={`${serverUrl} · ${connState}`}
+            status={connState === 'disconnected' ? 'error' : connState === 'connecting' ? 'sending' : status}
             icon={<Smartphone size={14} className="text-emerald-400" />}
             actions={
               <button
@@ -241,8 +256,11 @@ export const ExhibitionPanel: React.FC = () => {
           size={112}
           knobSize={44}
           label="Move"
-          onChange={o => throttledMove(o.x, o.y)}
-          onRelease={() => transport.sendRaw(ExhibitionCommands.moveDirection(0, 0))}
+          onChange={o => { joystickRef.current = { x: o.x, y: o.y, active: true }; }}
+          onRelease={() => {
+            joystickRef.current = { x: 0, y: 0, active: false };
+            transport.sendRaw(ExhibitionCommands.moveDirection(0, 0));
+          }}
         />
       </div>
 
