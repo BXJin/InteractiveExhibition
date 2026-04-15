@@ -1,0 +1,9 @@
+{
+  "name": "Exhibition Controller",
+  "short_name": "Exhibition",
+  "display": "standalone",
+  "orientation": "portrait",
+  "start_url": "/",
+  "background_color": "#0a0a0a",
+  "theme_color": "#0a0a0a"
+}
